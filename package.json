@@ -1,0 +1,33 @@
+{
+  "name": "@lumen/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --build",
+    "lint": "eslint .",
+    "format": "prettier -w src"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@supabase/supabase-js": "^2.43.1",
+    "dotenv": "^16.6.1",
+    "fastify": "^4.27.0",
+    "firebase-admin": "^12.6.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^16.5.0",
+    "prettier": "^3.2.5",
+    "rimraf": "^5.0.5",
+    "tsx": "^4.15.7",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.50.0"
+  }
+}
