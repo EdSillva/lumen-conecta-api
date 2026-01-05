@@ -1,82 +1,99 @@
-import type { FastifyInstance } from 'fastify';
-import { z } from 'zod';
+import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 
-import { authMiddleware } from '../auth/auth.middleware';
-import { requireRole } from '../auth/roles.middleware';
-import { Role } from '../../types';
-import { createEventSchema, updateEventSchema, EventStatus, type EventResponse } from '../../schemas/events';
-import { supabase } from '../../shared/supabase';
+import { authMiddleware } from "../auth/auth.middleware";
+import { requireRole } from "../auth/roles.middleware";
+import { Role } from "../../types";
+import {
+  createEventSchema,
+  updateEventSchema,
+  EventStatus,
+  type EventResponse,
+} from "../../schemas/events";
+import { getSupabase } from "../../shared/supabase";
 
-if (!supabase) {
+if (!getSupabase) {
   // Early diagnostic to surface missing env vars
-  console.error('[supabase] client not configured. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+  console.error(
+    "[supabase] client not configured. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+  );
 }
 
 const eventIdParamSchema = z.object({ id: z.string() });
 
-export async function eventsRoutes(app: FastifyInstance) {
-  app.get('/events', async () => {
+export function eventsRoutes(app: FastifyInstance) {
+  const supabase = getSupabase();
+
+  app.get("/events", async () => {
     if (!supabase) {
-      throw new Error('Supabase client not configured');
+      throw new Error("Supabase client not configured");
     }
 
     const { data, error } = await supabase
-      .from('events')
-      .select('id, title, description, date, location, status, created_by, created_at, updated_at, cover_image')
-      .eq('status', EventStatus.APPROVED)
-      .order('created_at', { ascending: false });
+      .from("events")
+      .select(
+        "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+      )
+      .eq("status", EventStatus.APPROVED)
+      .order("created_at", { ascending: false });
 
     if (error) {
       // Log query errors for diagnostics
-      console.error('[events] list approved error', error);
+      console.error("[events] list approved error", error);
       throw error;
     }
 
     return (data ?? []).map(toEventResponse);
   });
 
-  app.get('/events/:id', async (request, reply) => {
-    const params = eventIdParamSchema.parse(request.params);
+  app.get("/events/:id", async (request, reply) => {
+    const params = eventIdParamSchema.parse(request.params);    
+
     if (!supabase) {
-      throw new Error('Supabase client not configured');
+      throw new Error("Supabase client not configured");
     }
 
     const { data, error } = await supabase
-      .from('events')
-      .select('id, title, description, date, location, status, created_by, created_at, updated_at, cover_image')
-      .eq('id', params.id)
+      .from("events")
+      .select(
+        "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+      )
+      .eq("id", params.id)
       .single();
 
     if (error) {
-      console.error('[events] get error', { id: params.id, error });
-      return reply.status(404).send({ message: 'Event not found' });
+      console.error("[events] get error", { id: params.id, error });
+      return reply.status(404).send({ message: "Event not found" });
     }
 
     return reply.send(toEventResponse(data));
   });
 
   app.post(
-    '/events',
+    "/events",
     { preHandler: [authMiddleware, requireRole([Role.CREATOR, Role.ADMIN])] },
     async (request, reply) => {
       let payload;
       try {
         payload = createEventSchema.parse(request.body);
       } catch (err) {
-        request.log.error({ err }, '[events] validation failed');
-        return reply.status(400).send({ message: 'Invalid payload' });
+        request.log.error({ err }, "[events] validation failed");
+        return reply.status(400).send({ message: "Invalid payload" });
       }
 
       if (!supabase) {
-        request.log.error('[supabase] client not configured');
-        return reply.status(500).send({ message: 'Supabase not configured' });
+        request.log.error("[supabase] client not configured");
+        return reply.status(500).send({ message: "Supabase not configured" });
       }
 
-      console.info('[events] creating', { payload, supabaseReady: Boolean(supabase) });
+      console.info("[events] creating", {
+        payload,
+        supabaseReady: Boolean(supabase),
+      });
 
       try {
         const { data, error } = await supabase
-          .from('events')
+          .from("events")
           .insert({
             title: payload.title,
             description: payload.description,
@@ -84,53 +101,61 @@ export async function eventsRoutes(app: FastifyInstance) {
             location: payload.location,
             status: EventStatus.PENDING,
             created_by: request.user!.id,
-            updated_at: null
+            updated_at: null,
           })
-          .select('id, title, description, date, location, status, created_by, created_at, updated_at, cover_image')
+          .select(
+            "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+          )
           .single();
 
         if (error || !data) {
-          request.log.error({ error }, '[events] failed to create');
-          console.error('[events] failed to create', error);
-          return reply.status(500).send({ message: 'Unable to create event', error: error?.message });
+          request.log.error({ error }, "[events] failed to create");
+          console.error("[events] failed to create", error);
+          return reply
+            .status(500)
+            .send({ message: "Unable to create event", error: error?.message });
         }
 
         return reply.code(201).send(toEventResponse(data));
       } catch (err) {
-        request.log.error({ err }, '[events] exception creating');
-        console.error('[events] exception creating', err);
-        return reply.status(500).send({ message: 'Unable to create event', error: (err as Error).message });
+        request.log.error({ err }, "[events] exception creating");
+        console.error("[events] exception creating", err);
+        return reply.status(500).send({
+          message: "Unable to create event",
+          error: (err as Error).message,
+        });
       }
-
     }
   );
 
   app.put(
-    '/events/:id',
+    "/events/:id",
     { preHandler: [authMiddleware, requireRole([Role.CREATOR, Role.ADMIN])] },
     async (request, reply) => {
       const params = eventIdParamSchema.parse(request.params);
       const payload = updateEventSchema.parse(request.body);
 
       if (!supabase) {
-        throw new Error('Supabase client not configured');
+        throw new Error("Supabase client not configured");
       }
 
-      request.log.info({ id: params.id, payload }, '[events] updating');
+      request.log.info({ id: params.id, payload }, "[events] updating");
 
       const { data, error } = await supabase
-        .from('events')
+        .from("events")
         .update({
           ...payload,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', params.id)
-        .select('id, title, description, date, location, status, created_by, created_at, updated_at, cover_image')
+        .eq("id", params.id)
+        .select(
+          "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+        )
         .single();
 
       if (error || !data) {
-        request.log.error({ error }, '[events] failed to update');
-        return reply.status(500).send({ message: 'Unable to update event' });
+        request.log.error({ error }, "[events] failed to update");
+        return reply.status(500).send({ message: "Unable to update event" });
       }
 
       return reply.send(toEventResponse(data));
@@ -158,10 +183,10 @@ function toEventResponse(row: EventRow): EventResponse {
     description: row.description,
     date: row.date,
     location: row.location,
-    status: row.status as EventStatus,
+    status: row.status,
     coverImage: row.cover_image ?? undefined,
     createdBy: row.created_by,
     createdAt: row.created_at,
-    updatedAt: row.updated_at ?? undefined
+    updatedAt: row.updated_at ?? undefined,
   };
 }

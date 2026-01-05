@@ -17,5 +17,7 @@
     }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["dist"]
+  "exclude": ["dist"],
+  "noUncheckedIndexedAccess": true,
+  "exactOptionalPropertyTypes": true
 }

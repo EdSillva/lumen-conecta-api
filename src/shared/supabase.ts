@@ -1,21 +1,22 @@
 import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Load environment variables before reading SUPABASE_* values.
 dotenv.config();
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!url || !key) {
-  // Keep the client undefined when credentials are absent; the server will log during startup.
-  console.warn('Supabase credentials are missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
+let client: SupabaseClient | null = null;
+
+export function getSupabase(): SupabaseClient {
+  if (client) return client;
+
+  if (!url || !key) {
+    throw new Error(
+      'Supabase credentials are missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+    );
+  }
+
+  client = createClient(url, key);
+  return client;
 }
-
-export const supabase = url && key ? createClient(url, key) : null;
-
-console.info('[supabase] configured:', {
-  hasUrl: Boolean(url),
-  hasKey: Boolean(key),
-  clientReady: Boolean(supabase)
-});

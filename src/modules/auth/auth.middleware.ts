@@ -1,30 +1,41 @@
-import type { FastifyReply, FastifyRequest } from 'fastify';
-import { getFirebaseApp } from '../../shared/firebase';
-import { Role, type RequestUser } from '../../types';
+import type { FastifyReply, FastifyRequest } from "fastify";
+import { getFirebaseApp } from "../../shared/firebase";
+import { findUserByFirebaseUid, createUser } from "../../db/users";
+import { Role } from "../../types";
 
-export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
+export async function authMiddleware(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
   const authHeader = request.headers.authorization;
-  request.log.info({ authHeader }, 'Checking authorization');
+
   if (!authHeader) {
-    return reply.status(401).send({ message: 'Missing Authorization header' });
+    return reply.status(401).send({ message: "Missing Authorization header" });
   }
 
-  const token = authHeader.replace('Bearer ', '');
+  const token = authHeader.replace("Bearer ", "");
 
   try {
     const app = getFirebaseApp();
     const decoded = await app.auth().verifyIdToken(token);
 
-    // TODO: fetch roles from database; for now rely on custom claims
-    const roles = (decoded.roles as Role[] | undefined) ?? [Role.CREATOR];
+    let user = await findUserByFirebaseUid(decoded.uid);
+
+    if (!user) {
+      user = await createUser({
+        firebase_uid: decoded.uid,
+        email: decoded.email,
+        roles: [Role.PUBLIC],
+      });
+    }
 
     request.user = {
-      id: decoded.uid,
+      id: user.id,
       firebaseUid: decoded.uid,
-      roles
-    } satisfies RequestUser;
+      roles: user.roles as Role[],
+    };
   } catch (err) {
-    request.log.error({ err }, 'Auth verification failed');
-    return reply.status(401).send({ message: 'Invalid token' });
+    request.log.error(err);
+    return reply.status(401).send({ message: "Invalid token" });
   }
 }
