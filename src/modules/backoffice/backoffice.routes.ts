@@ -9,12 +9,14 @@ import {
   type EventResponse,
   galleryResponseSchema,
 } from "../../schemas/index";
-import { supabase } from "../../shared/supabase";
+import { getSupabase } from "../../shared/supabase";
 
 const galleryParams = z.object({ id: z.string() });
 const eventParams = z.object({ id: z.string() });
 
-export async function backofficeRoutes(app: FastifyInstance) {
+export function backofficeRoutes(app: FastifyInstance) {
+  const supabase = getSupabase();
+  
   app.get(
     "/backoffice/events/pending",
     { preHandler: [authMiddleware, requireRole(Role.ADMIN)] },
@@ -161,7 +163,7 @@ function toEventResponse(row: EventRow): EventResponse {
     description: row.description,
     date: row.date,
     location: row.location,
-    status: row.status as EventStatus,
+    status: row.status,
     coverImage: row.cover_image ?? undefined,
     createdBy: row.created_by,
     createdAt: row.created_at,

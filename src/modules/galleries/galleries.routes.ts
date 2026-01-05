@@ -11,7 +11,7 @@ import {
 
 const paramsSchema = z.object({ id: z.string() });
 
-export async function galleriesRoutes(app: FastifyInstance) {
+export function galleriesRoutes(app: FastifyInstance) {
   app.post(
     "/events/:id/gallery",
     { preHandler: [authMiddleware, requireRole(Role.CREATOR)] },
