@@ -16,7 +16,7 @@
       "@lumen/schemas/*": ["../../packages/schemas/dist/*"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "exclude": ["dist"],
   "noUncheckedIndexedAccess": true,
   "exactOptionalPropertyTypes": true

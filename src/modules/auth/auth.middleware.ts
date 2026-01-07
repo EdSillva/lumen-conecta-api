@@ -1,11 +1,15 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { getFirebaseApp } from "../../shared/firebase";
-import { findUserByFirebaseUid, createUser } from "../../db/users";
-import { Role } from "../../types";
+import {
+  findUserByFirebaseUid,
+  createUser,
+  updateUserProfile,
+} from "../../db/users";
+import { Role } from "../../schemas/user";
 
 export async function authMiddleware(
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   const authHeader = request.headers.authorization;
 
@@ -19,20 +23,37 @@ export async function authMiddleware(
     const app = getFirebaseApp();
     const decoded = await app.auth().verifyIdToken(token);
 
+    const body = request.body as { name?: string; email?: string } | undefined;
+    const nameFromBody = body?.name?.trim();
+    const emailFromBody = body?.email?.trim();
+    const name = (nameFromBody || decoded.name || "") as string;
+    const email = emailFromBody || decoded.email || "";
+
     let user = await findUserByFirebaseUid(decoded.uid);
 
     if (!user) {
       user = await createUser({
         firebase_uid: decoded.uid,
-        email: decoded.email,
+        name,
+        email,
         roles: [Role.PUBLIC],
       });
+    } else {
+      const needsName = !!(nameFromBody && nameFromBody !== user.name);
+      const needsEmail = !!(emailFromBody && emailFromBody !== user.email);
+
+      if (needsName || needsEmail) {
+        user = await updateUserProfile(user.id, {
+          name: needsName ? nameFromBody : undefined,
+          email: needsEmail ? emailFromBody : undefined,
+        });
+      }
     }
 
     request.user = {
       id: user.id,
       firebaseUid: decoded.uid,
-      roles: user.roles as Role[],
+      roles: user.roles,
     };
   } catch (err) {
     request.log.error(err);

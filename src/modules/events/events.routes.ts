@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { authMiddleware } from "../auth/auth.middleware";
 import { requireRole } from "../auth/roles.middleware";
-import { Role } from "../../types";
+import { Role } from "../../schemas/user";
 import {
   createEventSchema,
   updateEventSchema,
@@ -15,7 +15,7 @@ import { getSupabase } from "../../shared/supabase";
 if (!getSupabase) {
   // Early diagnostic to surface missing env vars
   console.error(
-    "[supabase] client not configured. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+    "[supabase] client not configured. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
   );
 }
 
@@ -32,7 +32,7 @@ export function eventsRoutes(app: FastifyInstance) {
     const { data, error } = await supabase
       .from("events")
       .select(
-        "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+        "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image",
       )
       .eq("status", EventStatus.APPROVED)
       .order("created_at", { ascending: false });
@@ -47,7 +47,7 @@ export function eventsRoutes(app: FastifyInstance) {
   });
 
   app.get("/events/:id", async (request, reply) => {
-    const params = eventIdParamSchema.parse(request.params);    
+    const params = eventIdParamSchema.parse(request.params);
 
     if (!supabase) {
       throw new Error("Supabase client not configured");
@@ -56,7 +56,7 @@ export function eventsRoutes(app: FastifyInstance) {
     const { data, error } = await supabase
       .from("events")
       .select(
-        "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+        "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image",
       )
       .eq("id", params.id)
       .single();
@@ -73,6 +73,7 @@ export function eventsRoutes(app: FastifyInstance) {
     "/events",
     { preHandler: [authMiddleware, requireRole([Role.CREATOR, Role.ADMIN])] },
     async (request, reply) => {
+      const user = request.user;
       let payload;
       try {
         payload = createEventSchema.parse(request.body);
@@ -100,11 +101,11 @@ export function eventsRoutes(app: FastifyInstance) {
             date: payload.date,
             location: payload.location,
             status: EventStatus.PENDING,
-            created_by: request.user!.id,
+            created_by: user.id,
             updated_at: null,
           })
           .select(
-            "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+            "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image",
           )
           .single();
 
@@ -125,7 +126,7 @@ export function eventsRoutes(app: FastifyInstance) {
           error: (err as Error).message,
         });
       }
-    }
+    },
   );
 
   app.put(
@@ -149,7 +150,7 @@ export function eventsRoutes(app: FastifyInstance) {
         })
         .eq("id", params.id)
         .select(
-          "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+          "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image",
         )
         .single();
 
@@ -159,7 +160,7 @@ export function eventsRoutes(app: FastifyInstance) {
       }
 
       return reply.send(toEventResponse(data));
-    }
+    },
   );
 }
 

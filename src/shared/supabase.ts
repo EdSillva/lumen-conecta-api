@@ -1,5 +1,5 @@
-import dotenv from 'dotenv';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import dotenv from "dotenv";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
@@ -13,7 +13,7 @@ export function getSupabase(): SupabaseClient {
 
   if (!url || !key) {
     throw new Error(
-      'Supabase credentials are missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+      "Supabase credentials are missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
     );
   }
 

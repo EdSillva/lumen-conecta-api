@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { authMiddleware } from "../auth/auth.middleware";
 import { requireRole } from "../auth/roles.middleware";
-import { Role } from "../../types";
+import { Role } from "../../schemas/user";
 import {
   createGallerySchema,
   type GalleryResponse,
@@ -26,15 +26,17 @@ export function galleriesRoutes(app: FastifyInstance) {
         eventId: params.id,
       });
 
+      const user = request.user;
+
       const gallery: GalleryResponse = {
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
-        createdBy: request.user!.id,
+        createdBy: user.id,
         title: payload.title,
         eventId: payload.eventId,
       };
 
       return reply.code(201).send(gallery);
-    }
+    },
   );
 }
