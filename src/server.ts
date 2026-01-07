@@ -15,13 +15,27 @@ async function bootstrap() {
 
   await app.register(cors, { origin: true });
 
-  // 🔹 Swagger (OpenAPI)
   await app.register(swagger, {
     openapi: {
       info: {
         title: "Lumen API",
         description: "Documentação da API do Lumen Conecta",
         version: "1.0.0",
+      },
+      servers: [
+        {
+          url: "http://localhost:3333",
+          description: "Local development server",
+        },
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+          },
+        },
       },
     },
   });
@@ -38,7 +52,7 @@ async function bootstrap() {
 
   if (!getSupabase) {
     app.log.warn(
-      "Supabase client not configured; set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+      "Supabase client not configured; set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
     );
   }
 

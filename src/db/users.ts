@@ -1,14 +1,14 @@
+import { z } from "zod";
 import { getSupabase } from "../shared/supabase";
-import { Role } from "../types/role";
+import { Role, createUserSchema, type UserResponse } from "../schemas/user";
 
-export type User = {
-  id: string;
+type CreateUserInput = z.input<typeof createUserSchema> & {
   firebase_uid: string;
-  email: string | null;
-  roles: Role[];
 };
 
-export async function findUserByFirebaseUid(uid: string): Promise<User | null> {
+export async function findUserByFirebaseUid(
+  uid: string,
+): Promise<UserResponse | null> {
   const supabase = getSupabase();
 
   const { data, error } = await supabase
@@ -24,25 +24,24 @@ export async function findUserByFirebaseUid(uid: string): Promise<User | null> {
     throw error;
   }
 
-  return data;
+  return data as UserResponse;
 }
 
-export async function createUser(input: {
-  firebase_uid: string;
-  email?: string;
-  roles?: Role[];
-}): Promise<User> {
+export async function createUser(
+  input: CreateUserInput,
+): Promise<UserResponse> {
   const supabase = getSupabase();
 
   const { data, error } = await supabase
     .from("users")
     .insert({
       firebase_uid: input.firebase_uid,
-      email: input.email ?? null,
-      roles: input.roles ?? ["PUBLIC"],
+      name: input.name,
+      email: input.email,
+      roles: input.roles ?? [Role.PUBLIC],
     })
     .select()
-    .single();
+    .single<UserResponse>();
 
   if (error) {
     throw error;
@@ -53,7 +52,7 @@ export async function createUser(input: {
 
 export async function setUserRoles(
   userId: string,
-  roles: Role[]
+  roles: Role[],
 ): Promise<Role[]> {
   const supabase = getSupabase();
 
@@ -62,11 +61,35 @@ export async function setUserRoles(
     .update({ roles })
     .eq("id", userId)
     .select("roles")
-    .single();
+    .single<{ roles: Role[] }>();
 
   if (error) {
     throw error;
   }
 
   return data.roles;
+}
+
+export async function updateUserProfile(
+  userId: string,
+  input: { name?: string; email?: string },
+): Promise<UserResponse> {
+  const supabase = getSupabase();
+
+  const updates: Partial<Pick<UserResponse, "name" | "email" | "roles">> = {};
+  if (typeof input.name === "string") updates.name = input.name;
+  if (typeof input.email === "string") updates.email = input.email;
+
+  const { data, error } = await supabase
+    .from("users")
+    .update(updates)
+    .eq("id", userId)
+    .select()
+    .single<UserResponse>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }

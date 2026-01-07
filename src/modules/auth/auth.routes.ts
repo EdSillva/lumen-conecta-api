@@ -2,38 +2,47 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { authMiddleware } from "./auth.middleware";
-import { Role } from "../../types";
 import { setUserRoles } from "../../db/users";
+import { Role } from "../../schemas/user";
 
-const assignableRoles = [Role.PUBLIC, Role.CREATOR] as const;
+const assignableRoles = JSON.parse(
+  process.env.ASSIGNABLE_ROLES || "[]",
+) as Role[];
 
 const roleSchema = z.object({
-  role: z.enum(assignableRoles),
+  role: z.enum([Role.PUBLIC, Role.CREATOR, Role.USER, Role.ADMIN]),
 });
 
 export function authRoutes(app: FastifyInstance) {
   app.get("/auth/me", { preHandler: [authMiddleware] }, (request) => {
+    const user = request.user;
     return {
-      id: request.user!.id,
-      firebaseUid: request.user!.firebaseUid,
-      roles: request.user!.roles,
+      id: user.id,
+      firebaseUid: user.firebaseUid || null,
+      roles: user.roles || [],
     };
   });
 
-  app.post(
-    "/auth/role",
-    { preHandler: [authMiddleware] },
-    async (request, reply) => {
-      const { role } = roleSchema.parse(request.body);
-      const currentRoles = request.user?.roles ?? [];
-      const mergedRoles = Array.from(new Set<Role>([...currentRoles, role]));
+  app.post<{
+    Body: { role: Role };
+  }>("/auth/role", { preHandler: [authMiddleware] }, async (request, reply) => {
+    const { role } = roleSchema.parse(request.body);
 
-      const roles = await setUserRoles(request.user!.id, mergedRoles);
-      return reply.send({ roles });
+    if (!assignableRoles.includes(role)) {
+      return reply.status(403).send({ message: "Role not allowed" });
     }
-  );
 
-  app.post(
+    const user = request.user;
+    const currentRoles = user.roles;
+    const mergedRoles = Array.from(new Set<Role>([...currentRoles, role]));
+
+    const roles = await setUserRoles(user.id, mergedRoles);
+    return reply.send({ roles });
+  });
+
+  app.post<{
+    Body: { roles: Role[] };
+  }>(
     "/auth/register",
     { preHandler: [authMiddleware] },
     async (request, reply) => {
@@ -47,9 +56,10 @@ export function authRoutes(app: FastifyInstance) {
       const safeRoles = roles.filter((r) => allowed.includes(r));
       const finalRoles = safeRoles.length ? safeRoles : [Role.PUBLIC];
 
-      await setUserRoles(request.user!.id, finalRoles);
+      const user = request.user;
+      await setUserRoles(user.id, finalRoles);
 
       return reply.send({ roles: finalRoles });
-    }
+    },
   );
 }

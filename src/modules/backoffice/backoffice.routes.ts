@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { authMiddleware } from "../auth/auth.middleware";
 import { requireRole } from "../auth/roles.middleware";
-import { Role } from "../../types";
+import { Role } from "../../schemas/user";
 import {
   EventStatus,
   type EventResponse,
@@ -16,7 +16,7 @@ const eventParams = z.object({ id: z.string() });
 
 export function backofficeRoutes(app: FastifyInstance) {
   const supabase = getSupabase();
-  
+
   app.get(
     "/backoffice/events/pending",
     { preHandler: [authMiddleware, requireRole(Role.ADMIN)] },
@@ -28,7 +28,7 @@ export function backofficeRoutes(app: FastifyInstance) {
       const { data, error } = await supabase
         .from("events")
         .select(
-          "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+          "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image",
         )
         .eq("status", EventStatus.PENDING)
         .order("created_at", { ascending: false });
@@ -38,7 +38,7 @@ export function backofficeRoutes(app: FastifyInstance) {
       }
 
       return (data ?? []).map(toEventResponse);
-    }
+    },
   );
 
   app.put(
@@ -58,7 +58,7 @@ export function backofficeRoutes(app: FastifyInstance) {
         })
         .eq("id", params.id)
         .select(
-          "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+          "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image",
         )
         .single();
 
@@ -67,7 +67,7 @@ export function backofficeRoutes(app: FastifyInstance) {
       }
 
       return reply.send(toEventResponse(data));
-    }
+    },
   );
 
   app.put(
@@ -87,7 +87,7 @@ export function backofficeRoutes(app: FastifyInstance) {
         })
         .eq("id", params.id)
         .select(
-          "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image"
+          "id, title, description, date, location, status, created_by, created_at, updated_at, cover_image",
         )
         .single();
 
@@ -96,7 +96,7 @@ export function backofficeRoutes(app: FastifyInstance) {
       }
 
       return reply.send(toEventResponse(data));
-    }
+    },
   );
 
   app.delete(
@@ -118,7 +118,7 @@ export function backofficeRoutes(app: FastifyInstance) {
       }
 
       return reply.code(204).send({ id: params.id });
-    }
+    },
   );
 
   app.put(
@@ -130,7 +130,7 @@ export function backofficeRoutes(app: FastifyInstance) {
         .partial({ id: true, createdBy: true, createdAt: true })
         .parse(request.body);
       return reply.send({ id: params.id, ...payload });
-    }
+    },
   );
 
   app.delete(
@@ -139,7 +139,7 @@ export function backofficeRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const params = galleryParams.parse(request.params);
       return reply.code(204).send({ id: params.id });
-    }
+    },
   );
 }
 
